@@ -1,0 +1,71 @@
+# Default values for webapp.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 3
+
+# Name overrides
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: hashicorp/http-echo
+  tag: "0.2.3"
+  pullPolicy: IfNotPresent
+
+service:
+  type: LoadBalancer
+  port: 8080
+  targetPort: 5678
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 64Mi
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: 5678
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 5678
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+# Message to display from the web service
+echoMessage: "Hello from Kubernetes Lab!"
+
+# ServiceMonitor for Prometheus
+# NOTE: Requires Prometheus Operator CRDs to be installed first
+# Install monitoring stack before enabling this
+serviceMonitor:
+  enabled: false
+  interval: 30s
+
+# Service Account
+serviceAccount:
+  create: false
+  name: ""
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+securityContext: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}

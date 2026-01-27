@@ -1,0 +1,69 @@
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Workflow
+metadata:
+  name: advanced-chaos-workflow
+  namespace: default
+spec:
+  entry: the-entry
+  templates:
+    - name: the-entry
+      templateType: Serial
+      deadline: 10m
+      children:
+        - workflow-pod-failure
+        - workflow-network-delay
+        - workflow-cpu-stress
+        - workflow-recovery
+    
+    - name: workflow-pod-failure
+      templateType: PodChaos
+      deadline: 2m
+      podChaos:
+        action: pod-failure
+        mode: one
+        selector:
+          namespaces:
+            - default
+          labelSelectors:
+            app: webapp
+        duration: "60s"
+    
+    - name: workflow-network-delay
+      templateType: NetworkChaos
+      deadline: 2m
+      networkChaos:
+        action: delay
+        mode: one
+        selector:
+          namespaces:
+            - default
+          labelSelectors:
+            app: webapp
+        delay:
+          latency: "500ms"
+          correlation: "50"
+          jitter: "100ms"
+        duration: "90s"
+        direction: to
+    
+    - name: workflow-cpu-stress
+      templateType: StressChaos
+      deadline: 2m
+      stressChaos:
+        mode: one
+        selector:
+          namespaces:
+            - default
+          labelSelectors:
+            app: webapp
+        stressors:
+          cpu:
+            workers: 2
+            load: 80
+        duration: "90s"
+    
+    - name: workflow-recovery
+      templateType: Suspend
+      deadline: 1m
+      suspend:
+        duration: "60s"
