@@ -1,18 +1,18 @@
 apiVersion: chaos-mesh.org/v1alpha1
-kind: StressChaos
+kind: IOChaos
 metadata:
-  name: memory-stress-experiment
+  name: disk-io-stress
   namespace: default
 spec:
+  action: mixed-random
   mode: one
   selector:
     namespaces:
       - default
     labelSelectors:
       "app.kubernetes.io/name": "webapp"
+  volumePath: /var/run/secrets
+  path: "/var/run/secrets/**/*"
   duration: "60s"
-  stressors:
-    memory:
-      workers: 1
-      size: "64Mi"
-
+  percent: 50
+  delay: "10ms"

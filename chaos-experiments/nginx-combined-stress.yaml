@@ -1,7 +1,7 @@
 apiVersion: chaos-mesh.org/v1alpha1
 kind: StressChaos
 metadata:
-  name: memory-stress-experiment
+  name: nginx-combined-stress
   namespace: default
 spec:
   mode: one
@@ -10,9 +10,13 @@ spec:
       - default
     labelSelectors:
       "app.kubernetes.io/name": "webapp"
-  duration: "60s"
+  duration: "90s"
   stressors:
+    cpu:
+      workers: 1
+      load: 60
     memory:
       workers: 1
-      size: "64Mi"
-
+      size: "32Mi"
+  containerNames:
+    - nginx

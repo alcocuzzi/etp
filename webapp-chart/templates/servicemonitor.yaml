@@ -12,7 +12,7 @@ spec:
     matchLabels:
       {{- include "webapp.selectorLabels" . | nindent 6 }}
   endpoints:
-  - port: http
+  - port: metrics
     interval: {{ .Values.serviceMonitor.interval }}
-    path: /
+    path: /metrics
 {{- end }}

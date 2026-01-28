@@ -9,9 +9,10 @@ spec:
     namespaces:
       - default
     labelSelectors:
-      app: webapp
+      "app.kubernetes.io/name": "webapp"
+  duration: "60s"
   stressors:
     cpu:
       workers: 2
       load: 80
-  duration: "90s"
+

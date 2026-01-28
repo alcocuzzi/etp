@@ -1,6 +1,9 @@
 # Custom values for kube-prometheus-stack
 
 prometheus:
+  service:
+    type: LoadBalancer
+    port: 9090
   prometheusSpec:
     serviceMonitorSelectorNilUsesHelmValues: false
     podMonitorSelectorNilUsesHelmValues: false
@@ -16,6 +19,13 @@ prometheus:
 grafana:
   enabled: true
   adminPassword: admin123
+  service:
+    type: LoadBalancer
+    port: 80
+  # Disable sidecar datasource provisioning to avoid conflicts
+  sidecar:
+    datasources:
+      enabled: false
   datasources:
     datasources.yaml:
       apiVersion: 1
@@ -55,7 +65,7 @@ kubeStateMetrics:
   enabled: true
 
 nodeExporter:
-  enabled: true
+  enabled: false  # Disabled for Docker Desktop - doesn't support required mount propagation
 
 prometheusOperator:
   enabled: true

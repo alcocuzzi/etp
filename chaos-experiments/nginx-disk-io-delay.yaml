@@ -1,18 +1,18 @@
 apiVersion: chaos-mesh.org/v1alpha1
-kind: StressChaos
+kind: IOChaos
 metadata:
-  name: memory-stress-experiment
+  name: nginx-disk-io-delay
   namespace: default
 spec:
+  action: latency
   mode: one
   selector:
     namespaces:
       - default
     labelSelectors:
       "app.kubernetes.io/name": "webapp"
+  volumePath: /var/run/secrets
+  path: "/var/run/secrets/**/*"
   duration: "60s"
-  stressors:
-    memory:
-      workers: 1
-      size: "64Mi"
-
+  delay: "100ms"
+  percent: 50

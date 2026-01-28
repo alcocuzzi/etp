@@ -1,18 +1,16 @@
 apiVersion: chaos-mesh.org/v1alpha1
-kind: StressChaos
+kind: PodChaos
 metadata:
-  name: memory-stress-experiment
+  name: nginx-container-kill
   namespace: default
 spec:
+  action: container-kill
   mode: one
   selector:
     namespaces:
       - default
     labelSelectors:
       "app.kubernetes.io/name": "webapp"
-  duration: "60s"
-  stressors:
-    memory:
-      workers: 1
-      size: "64Mi"
-
+  duration: "15s"
+  containerNames:
+    - nginx

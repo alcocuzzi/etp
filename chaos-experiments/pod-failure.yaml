@@ -6,11 +6,10 @@ metadata:
 spec:
   action: pod-failure
   mode: one
-  duration: "60s"
+  duration: "30s"
   selector:
     namespaces:
       - default
     labelSelectors:
-      app: webapp
-  scheduler:
-    cron: "@every 5m"
+      "app.kubernetes.io/name": "webapp"
+
