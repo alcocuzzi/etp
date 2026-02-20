@@ -1,0 +1,20 @@
+# Prediction-Based Autoscaler – Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# AI / LLM
+pydantic-ai>=0.1.0            # pydantic-ai with OpenAI-compatible backend (Ollama)
+                               # openai is pulled in transitively by pydantic-ai
+
+# Kubernetes
+kubernetes>=29.0.0           # official k8s Python client
+
+# Prometheus
+requests>=2.31.0             # HTTP queries to the Prometheus HTTP API
+
+# Data
+pandas>=2.2.0                # DataFrame handling and CSV serialisation
+numpy>=1.26.0                # dependency of pandas
+
+# Utilities
+python-dotenv>=1.0.0         # optional: load .env for custom config
+rich>=13.0.0                 # pretty terminal output (optional but nice)

@@ -7,20 +7,15 @@ This guide will help you completely tear down and recreate the entire Kubernetes
 Run these commands to remove everything:
 
 ```bash
-# 1. Stop all chaos experiments
-kubectl delete podchaos --all
-kubectl delete stresschaos --all
-kubectl delete iochaos --all
-kubectl delete workflows --all
-
-# 2. Uninstall all Helm releases
+# 1. Uninstall all Helm releases
 helm uninstall webapp || true
-helm uninstall chaos-mesh -n chaos-mesh || true
 helm uninstall monitoring -n monitoring || true
 
-# 3. Delete all namespaces
-kubectl delete namespace chaos-mesh || true
+# 2. Delete namespaces
 kubectl delete namespace monitoring || true
+
+# 3. Remove metrics-server (optional)
+kubectl delete -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml || true
 
 # 4. Verify everything is clean
 kubectl get all
@@ -52,7 +47,6 @@ helm version
 
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-helm repo add chaos-mesh https://charts.chaos-mesh.org
 helm repo update
 ```
 
@@ -212,67 +206,30 @@ for i in {1..100}; do curl -s http://localhost:8080 > /dev/null; done
 - Disk I/O (read/write bytes per second)
 - Total HTTP Requests (bar gauge)
 
-### Step 8: Install Chaos Mesh (Optional)
+### Step 8: Install Metrics Server
+
+Required for HPA and the autoscaler experiment (`kubectl top` commands depend on it):
 
 ```bash
-# Create namespace
-kubectl create namespace chaos-mesh
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml && \
+kubectl patch deployment metrics-server -n kube-system --type='json' \
+  -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]' && \
+echo "metrics-server patched"
 
-# Install Chaos Mesh
-helm install chaos-mesh chaos-mesh/chaos-mesh -n chaos-mesh \
-  --set chaosDaemon.runtime=containerd \
-  --set chaosDaemon.socketPath=/run/containerd/containerd.sock \
-  --set dashboard.create=true
-
-# Expose dashboard as LoadBalancer
-kubectl patch svc chaos-dashboard -n chaos-mesh -p '{"spec": {"type": "LoadBalancer"}}'
-
-# Wait for pods
-kubectl get pods -n chaos-mesh -w
-# Press Ctrl+C when all pods show Running
+# Wait ~60 seconds, then verify
+kubectl get deployment metrics-server -n kube-system
+kubectl top nodes
 ```
 
-**Expected pods in chaos-mesh namespace:**
-- chaos-controller-manager-xxxxx (3 replicas)
-- chaos-daemon-xxxxx (DaemonSet - 1 per node)
-- chaos-dashboard-xxxxx (1 replica)
-- chaos-dns-server-xxxxx (1 replica)
-
-### Step 9: Configure Chaos Mesh RBAC
-
-Apply RBAC configuration and get access token:
-
-```bash
-# Apply RBAC resources
-kubectl apply -f chaos-mesh-rbac.yaml
-
-# Get access token
-kubectl describe secret chaos-mesh-viewer-token -n default | grep "token:" | awk '{print $2}'
-
-# Or for Windows PowerShell
-kubectl describe secret chaos-mesh-viewer-token -n default | Select-String "token:" | ForEach-Object { ($_ -split "\s+")[1] }
+**Expected output of `kubectl top nodes`:**
+```
+NAME             CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%
+docker-desktop   123m         3%     1234Mi          15%
 ```
 
-Copy the token output - you'll need it to access the Chaos Dashboard.
+### Step 9: Generate Test Traffic (Optional)
 
-### Step 10: Access Chaos Dashboard
-
-1. Open http://localhost:2333
-2. Select **Token** authentication method
-3. Paste the token from Step 9
-4. Click **Submit**
-
-You should now have full access to the Chaos Dashboard.
-
-Verify connectivity:
-```bash
-curl -I http://localhost:2333
-# Should return: HTTP/1.1 200 OK
-```
-
-### Step 11: Generate Test Traffic (Optional)
-
-To populate metrics and test the monitoring dashboard:
+To populate metrics and verify the monitoring dashboard:
 
 ```bash
 # Generate a burst of requests (bash/zsh)
@@ -285,57 +242,19 @@ for i in {1..100}; do curl -s http://localhost:8080 > /dev/null; done
 while true; do curl -s http://localhost:8080 > /dev/null; sleep 0.1; done
 ```
 
-### Step 12: Test Chaos Experiments
-
-```bash
-# List available experiments
-ls -1 chaos-experiments/
-
-# Run a simple CPU stress test
-kubectl apply -f chaos-experiments/cpu-stress.yaml
-
-# Watch the dashboard for changes
-# Open: http://localhost → Chaos Engineering - NGINX Monitoring
-
-# Check experiment status
-kubectl get stresschaos
-
-# After 60 seconds, the experiment auto-completes
-# Clean up
-kubectl delete stresschaos --all
-```
-
-**Available experiments:**
-- `pod-failure.yaml` - Kills one pod
-- `cpu-stress.yaml` - 80% CPU load on one pod
-- `memory-stress.yaml` - Consumes 64Mi memory
-- `disk-io-stress.yaml` - Mixed I/O operations with delay
-- `nginx-container-kill.yaml` - Kills nginx container only
-- `nginx-disk-io-delay.yaml` - Adds I/O latency
-- `nginx-combined-stress.yaml` - CPU + memory stress
-- `advanced-workflow.yaml` - Sequential chaos workflow
+> **Note:** If `http://localhost:8080` does not respond (Docker Desktop may intercept it), use port-forward:
+> ```bash
+> kubectl port-forward svc/webapp-service 18080:8080 &
+> for i in {1..100}; do curl -s http://localhost:18080 > /dev/null; done
+> ```
 
 ## Troubleshooting Common Issues
 
 ### Issue: Grafana shows "Connection refused"
 **Solution:** Wait 30-60 seconds after pods are ready. LoadBalancer takes time to activate.
 
-### Issue: Chaos Dashboard shows "Authorization Required"
-**Solution:**
-```bash
-# Verify RBAC resources exist
-kubectl get serviceaccount chaos-mesh-viewer -n default
-kubectl get secret chaos-mesh-viewer-token -n default
-
-# If missing, apply RBAC configuration
-kubectl apply -f chaos-mesh-rbac.yaml
-
-# Get new token
-kubectl describe secret chaos-mesh-viewer-token -n default | grep "token:"
-```
-
 ### Issue: Dashboard shows "No data"
-**Solution:** 
+**Solution:**
 ```bash
 # Generate traffic (bash/zsh)
 for i in {1..100}; do curl -s http://localhost:8080 > /dev/null; done
@@ -368,20 +287,6 @@ kubectl get configmap webapp-dashboard -n monitoring --show-labels | grep grafan
 kubectl rollout restart deployment monitoring-grafana -n monitoring
 ```
 
-### Issue: Chaos experiments fail with "CRD not found"
-**Solution:**
-```bash
-# Verify Chaos Mesh CRDs are installed
-kubectl get crd | grep chaos-mesh
-
-# If missing, reinstall Chaos Mesh
-helm uninstall chaos-mesh -n chaos-mesh
-helm install chaos-mesh chaos-mesh/chaos-mesh -n chaos-mesh \
-  --set chaosDaemon.runtime=containerd \
-  --set chaosDaemon.socketPath=/run/containerd/containerd.sock \
-  --set dashboard.create=true
-```
-
 ### Issue: Services stuck on "Pending" for LoadBalancer
 **Solution:**
 ```bash
@@ -392,6 +297,23 @@ helm upgrade webapp ./webapp-chart --set serviceMonitor.enabled=true --set grafa
 # Or restart Docker Desktop
 ```
 
+### Issue: `kubectl top nodes` / `kubectl top pods` returns "metrics not available"
+**Solution:** metrics-server is not installed or not ready. Apply and patch:
+```bash
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+kubectl patch deployment metrics-server -n kube-system --type='json' \
+  -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
+# Wait 60 seconds then retry
+kubectl top nodes
+```
+
+### Issue: HPA shows `<unknown>` for CPU/memory targets
+**Solution:** metrics-server must be running and healthy (see above). Also verify the HPA resource requests are set:
+```bash
+kubectl describe hpa webapp-hpa
+kubectl get deployment webapp -o yaml | grep -A5 resources
+```
+
 ## Validation Checklist
 
 After installation, verify:
@@ -399,41 +321,37 @@ After installation, verify:
 - [ ] Monitoring namespace exists with all pods Running
 - [ ] Grafana accessible at http://localhost with admin/admin123
 - [ ] Prometheus accessible at http://localhost:9090
-- [ ] Webapp accessible at http://localhost:8080
+- [ ] Webapp accessible at http://localhost:8080 (or via port-forward on 18080)
 - [ ] Metrics accessible at http://localhost:9113/metrics
 - [ ] 3 webapp pods Running with 2/2 containers each
 - [ ] ServiceMonitor exists: `kubectl get servicemonitor`
-- [ ] Dashboard ConfigMap exists in monitoring namespace
-- [ ] Prometheus shows webapp targets as "up"
-- [ ] Grafana dashboard "Chaos Engineering - NGINX Monitoring" shows data
-- [ ] Chaos Mesh RBAC configured and token retrieved (if using Chaos Mesh)
-- [ ] Chaos Mesh pods Running (if installed)
-- [ ] Chaos Dashboard accessible at http://localhost:2333 with token (if installed)
+- [ ] Dashboard ConfigMap exists in monitoring namespace: `kubectl get configmap webapp-dashboard -n monitoring`
+- [ ] Prometheus shows webapp targets as "up": http://localhost:9090/targets
+- [ ] Grafana dashboard "Chaos Engineering - NGINX Monitoring" shows data after generating traffic
+- [ ] metrics-server running: `kubectl get deployment metrics-server -n kube-system`
+- [ ] `kubectl top nodes` returns resource usage
 
 ## Time Estimates
 
-- Clean installation (without Chaos Mesh): 5-7 minutes
-- Clean installation (with Chaos Mesh): 10-12 minutes
+- Full installation: 5-8 minutes
 - Monitoring stack pods ready: 2-3 minutes
 - Webapp deployment: 30-60 seconds
-- Chaos Mesh deployment: 1-2 minutes
-- RBAC configuration and token retrieval: 1 minute
+- metrics-server ready: 30-60 seconds
 - Grafana dashboard data visible: 10-30 seconds after generating traffic
 
 ## Next Steps
 
 Once everything is verified:
 
-1. Explore the Grafana dashboard
-2. Generate continuous traffic (see Step 11 commands)
-3. Run chaos experiments and observe the impact
-4. Create your own custom dashboards
-5. Modify chaos experiments for your use case
+1. Explore the Grafana dashboard at http://localhost
+2. Generate continuous traffic (see Step 8 commands)
+3. Set up the autoscaler experiment — see `autoscaler/README.md`
+4. Create your own custom Grafana dashboards
 
 ## Support
 
 For issues:
 1. Check pod logs: `kubectl logs <pod-name>`
 2. Review README.md for detailed documentation
-3. Verify Docker Desktop has sufficient resources
+3. Verify Docker Desktop has sufficient resources (Settings → Resources: 4+ CPUs, 8+ GB RAM)
 4. Use the Validation Checklist above to ensure all components are working

@@ -1,0 +1,46 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# ── Virtual environment ───────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Distribution / packaging ──────────────────────────────────────────────────
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# ── Type checking ─────────────────────────────────────────────────────────────
+.mypy_cache/
+.pyright/
+
+# ── Experiment output ─────────────────────────────────────────────────────────
+# CSV files written by main.py — keep the directory, ignore the data files
+experiment_data/*.csv
+experiment_data/*.json
+
+# ── Jupyter (if notebooks are ever added) ─────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── Environment / Secrets ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.log
+tmp/

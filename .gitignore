@@ -1,0 +1,23 @@
+# ── Helm ─────────────────────────────────────────────────────────────────────
+# Rendered / packaged chart artifacts
+*.tgz
+charts/
+Chart.lock
+
+# ── Kubernetes ────────────────────────────────────────────────────────────────
+# Local overrides (never commit credentials or personal values)
+*-secret.yaml
+*-override.yaml
+local-values.yaml
+
+# Helm diff / template output
+rendered/
+manifests/
+
+# ── Prometheus / Grafana ──────────────────────────────────────────────────────
+# Exported dashboards (use the chart ConfigMap as the source of truth)
+dashboards-export/
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.log
+tmp/

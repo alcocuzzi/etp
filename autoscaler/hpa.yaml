@@ -1,0 +1,46 @@
+---
+# Conventional HPA for the webapp Deployment
+# -------------------------------------------
+# Apply with:  kubectl apply -f hpa.yaml
+# Remove with: kubectl delete -f hpa.yaml
+#
+# This HPA targets 60% average CPU utilisation across all webapp pods.
+# It is used in the HPA_ONLY and COMPARISON experiment modes.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: webapp-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: webapp
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60   # scale when average CPU > 60% of request (100m)
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80   # scale when average memory > 80% of request (64Mi)
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0    # react immediately to spikes
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 60   # 60s scale-down window (reduced for testing)
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 30
